@@ -6,6 +6,7 @@ let cssLink href = link ["href", href; " rel", "stylesheet"; " type", "text/css"
 let h2 s = tag "h2" [] [Text s]
 let ul nodes = tag "ul" [] nodes
 let li = tag "li" []
+let em s = tag "em" [] [Text s]
 
 let home = [
     h2 "Home"
@@ -29,12 +30,43 @@ let store genres = [
     ]
 ]
 
-let browse genre = [
+let browse genre (albums: Db.Album list) = [
     h2 (sprintf "Genre: %s" genre)
+    ul [
+        for album in albums ->
+            li [
+                a (sprintf Path.Store.details album.Albumid) [] [
+                    Text album.Title
+                ]
+            ]
+    ]
 ]
 
-let details id = [
-    h2 (sprintf "Details: %d" id)
+let details (album: Db.AlbumsDetails) = [
+    h2 album.Title
+    p [] [
+        img ["src", album.Albumarturl]
+    ]
+    div ["id", "album-details"] [
+        for (caption, t) in ["Genre: ", album.Genre;
+                             "Artist: ", album.Artist;
+                             "Price: ", album.Price.ToString("0.##")] ->
+            p [] [
+                em caption
+                Text t
+            ]
+    ]
+]
+
+let notFound = [
+    h2 "Page not found"
+    p [] [
+        Text "Could not find the requested resource"
+    ]
+    p [] [
+        Text "Back to "
+        a Path.home [] [Text "Home"]
+    ]
 ]
 
 let index container = 
