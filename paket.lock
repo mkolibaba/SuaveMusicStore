@@ -1,11 +1,14 @@
 RESTRICTION: >= net461
 NUGET
   remote: https://www.nuget.org/api/v2
+    FAKE (4.63.2)
     FSharp.Core (4.2.3) - redirects: force
     Microsoft.NETCore.Platforms (2.1) - restriction: || (&& (< net45) (>= net461) (>= netstandard2.0)) (&& (>= net461) (>= netcoreapp2.0)) (&& (>= net461) (>= netstandard1.6))
     NETStandard.Library (2.0.3) - restriction: && (>= net461) (>= netstandard1.6)
       Microsoft.NETCore.Platforms (>= 1.1)
     Newtonsoft.Json (11.0.2) - restriction: && (>= net461) (>= netstandard1.6)
+    Npgsql (3.1.9)
+    SQLProvider (1.1.8)
     Suave (2.2.1)
       FSharp.Core (>= 4.0.0.1) - restriction: && (>= net461) (< netstandard1.6)
       FSharp.Core (>= 4.1.17) - restriction: && (>= net461) (>= netstandard1.6)
