@@ -72,7 +72,7 @@ Target "Build" (fun _ ->
 // --------------------------------------------------------------------------------------
 
 "Clean"
-//   ==> "InstallDotNetCLI" skipping
+//   ==> "InstallDotNetCLI"
   ==> "Restore"
   ==> "Build"
 

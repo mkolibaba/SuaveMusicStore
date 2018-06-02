@@ -10,3 +10,5 @@ module Store =
     let overview = "/store"
     let browse = "/store/browse"
     let details : IntPath = "/store/details/%d"
+
+    let browseKey = "genre"

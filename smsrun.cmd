@@ -1,0 +1,1 @@
+bin\Debug\net461\SuaveMusicStore.exe
