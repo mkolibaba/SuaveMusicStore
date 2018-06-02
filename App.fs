@@ -1,3 +1,5 @@
+module SuaveMusicStore.App
+
 open Suave                 // always open suave
 open Suave.Filters
 open Suave.Operators
@@ -13,12 +15,12 @@ let browse =
 
 let webPart =
     choose [
-        path "/" >=> (OK "Home")
-        path "/store" >=> (OK "Store")
-        path "/store/browse" >=> browse
-        path "/store/details" >=> (OK "Details")
-        pathScan "/store/details/%d"
+        path Path.home >=> (OK View.index)
+        path Path.Store.overview >=> (OK "Store")
+        path Path.Store.browse >=> browse
+        pathScan Path.Store.details
             (fun id -> OK (sprintf "Details: %d" id))
+        pathRegex "(.*)\.(css|png)" >=> Files.browseHome
     ]
 
 startWebServer defaultConfig webPart
