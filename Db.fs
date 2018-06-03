@@ -1,7 +1,6 @@
 module SuaveMusicStore.Db
 
 open FSharp.Data.Sql
-open System
 
 [<Literal>]
 let ConnectionString =
@@ -20,6 +19,7 @@ type DbContext = Sql.dataContext
 type Album = DbContext.``public.albumsEntity``
 type Genre = DbContext.``public.genresEntity``
 type AlbumsDetails = DbContext.``public.albumdetailsEntity``
+type Artist = DbContext.``public.artistsEntity``
 
 let getContext() = Sql.GetDataContext()
 
@@ -56,3 +56,6 @@ let getAlbum id (ctx: DbContext): Album option =
 let deleteAlbum (album: Album) (ctx: DbContext) =
     album.Delete()
     ctx.SubmitUpdates()
+
+let getArtists (ctx: DbContext): Artist list =
+    ctx.Public.Artists |> Seq.toList

@@ -1,5 +1,6 @@
 module SuaveMusicStore.View
 
+open Suave.Form
 open Suave.Html
 
 let cssLink href = link ["href", href; " rel", "stylesheet"; " type", "text/css"]
@@ -14,6 +15,41 @@ let td x = tag "td" [] x
 let strong s = tag "strong" [] (text s)
 let form x = tag "form" ["method", "POST"] x
 let submitInput value = input ["type", "submit"; "value", value]
+let formInput = Suave.Form.input
+
+type Field<'a> = {
+    Label: string
+    Html: Form<'a> -> Suave.Html.Node
+}
+
+type Fieldset<'a> = {
+    Legend: string
+    Fields: Field<'a> list
+}
+
+type FormLayout<'a> = {
+    Fieldsets: Fieldset<'a> list
+    SubmitText: string
+    Form: Form<'a>
+}
+
+let renderForm (layout: FormLayout<_>) =
+    form [
+        for set in layout.Fieldsets ->
+            tag "fieldset" [] [
+                yield tag "legend" [] [Text set.Legend]
+
+                for field in set.Fields do
+                    yield div ["class", "editor-label"] [
+                        Text field.Label
+                    ]
+                    yield div ["class", "editor-field"] [
+                        field.Html layout.Form
+                    ]
+            ]
+        
+        yield submitInput layout.SubmitText
+    ]
 
 let home = [
     h2 "Home"
@@ -81,6 +117,40 @@ let truncate k (s: string) =
         s.Substring(0, k - 3) + "..."
     else s
 
+let createAlbum genres artists = [
+    h2 "Create"
+
+    renderForm {
+        Form = Form.album
+        Fieldsets = [{
+            Legend = "Album"
+            Fields = [{
+                Label = "Genre"
+                Html = selectInput (fun f -> <@ f.GenreId @>) genres None
+            };{
+                Label = "Artist"
+                Html = selectInput (fun f -> <@ f.ArtistId @>) artists None
+            };{
+                Label = "Title"
+                Html = formInput (fun f -> <@ f.Title @>) []
+            };{
+                Label = "Price"
+                Html = formInput (fun f -> <@ f.Price @>) []
+            };{
+                Label = "Album Art Url"
+                Html = formInput 
+                    (fun f -> <@ f.ArtUrl @>)
+                    ["value", "/placeholder.gif"]
+            }]
+        }]
+        SubmitText = "Create"
+    }
+
+    div [] [
+        a Path.Admin.manage [] [Text "Back to"]
+    ]
+]
+
 let deleteAlbum albumTitle = [
     h2 "Delete confirmation"
     p [] [
@@ -99,6 +169,9 @@ let deleteAlbum albumTitle = [
 
 let manage (albums: Db.AlbumsDetails list) = [
     h2 "Index"
+    p [] [
+        a Path.Admin.createAlbum [] [Text "Create new"]
+    ]
     table [
         yield tr [
             for t in ["Artist"; "Title"; "Genre"; "Price"] -> th [Text t]
