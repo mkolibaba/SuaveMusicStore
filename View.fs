@@ -151,6 +151,43 @@ let createAlbum genres artists = [
     ]
 ]
 
+let editAlbum (album : Db.Album) genres artists = [ 
+    h2 "Edit"
+
+    renderForm
+        { Form = Form.album
+          Fieldsets = 
+              [ { Legend = "Album"
+                  Fields = 
+                      [ { Label = "Genre"
+                          Html = selectInput 
+                                    (fun f -> <@ f.GenreId @>) 
+                                    genres 
+                                    (Some (decimal album.Genreid)) }
+                        { Label = "Artist"
+                          Html = selectInput 
+                                    (fun f -> <@ f.ArtistId @>) 
+                                    artists 
+                                    (Some (decimal album.Artistid)) }
+                        { Label = "Title"
+                          Html = formInput 
+                                    (fun f -> <@ f.Title @>) 
+                                    ["value", album.Title] }
+                        { Label = "Price"
+                          Html = formInput 
+                                    (fun f -> <@ f.Price @>) 
+                                    ["value", formatDec album.Price] }
+                        { Label = "Album Art Url"
+                          Html = formInput 
+                                    (fun f -> <@ f.ArtUrl @>) 
+                                    ["value", "/placeholder.gif"] } ] } ]
+          SubmitText = "Save Changes" }
+
+    div [] [
+        a Path.Admin.manage [] [Text "Back to list"]
+    ]
+]
+
 let deleteAlbum albumTitle = [
     h2 "Delete confirmation"
     p [] [
@@ -184,6 +221,10 @@ let manage (albums: Db.AlbumsDetails list) = [
                           album.Price.ToString("0.##")] ->
                     td [Text t]
                 yield td [
+                    a (sprintf Path.Admin.editAlbum album.Albumid) [] [Text "Edit"]
+                    Text " | "
+                    a (sprintf Path.Store.details album.Albumid) [] [Text "Details"]
+                    Text " | "
                     a (sprintf Path.Admin.deleteAlbum album.Albumid) [] [Text "Delete"]
                 ]
             ]

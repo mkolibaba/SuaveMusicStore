@@ -1,1 +1,1 @@
-docker run --name suavemusicstore_db -e POSTGRES_PASSWORD=mysecretpassword -d -p 5432:5432 mkolibaba/suavemusicstore_db:0.1
+docker run -d --restart=always -p 5432:5432 mkolibaba/suavemusicstore_db:0.1

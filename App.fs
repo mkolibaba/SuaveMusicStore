@@ -6,6 +6,8 @@ open Suave.Operators
 open Suave.RequestErrors
 open Suave.Successful      // for OK-result
 open Suave.Web             // for config
+open Suave.Form
+open Suave.Model.Binding
 
 let html container =
     OK (View.index container)
@@ -32,6 +34,9 @@ let details id =
     | Some album -> html (View.details album)
     | None -> never
 
+let bindToForm form handler =
+    bindReq (bindForm form) handler BAD_REQUEST
+
 let manage = warbler (fun _ ->
     Db.getContext()
     |> Db.getAlbumsDetails
@@ -49,7 +54,40 @@ let createAlbum =
                 Db.getArtists ctx
                 |> List.map (fun g -> decimal g.Artistid, g.Name)
             html (View.createAlbum genres artists))
+
+        POST >=> bindToForm Form.album (fun form ->
+            Db.createAlbum 
+                (int form.ArtistId, 
+                int form.GenreId, 
+                form.Price, 
+                form.Title) ctx
+            Redirection.FOUND Path.Admin.manage)
     ]
+
+let editAlbum id =
+    let ctx = Db.getContext()
+    match Db.getAlbum id ctx with
+    | Some album -> 
+        choose [
+            GET >=> warbler (fun _ ->
+                let genres = 
+                    Db.getGenres ctx
+                    |> List.map (fun g -> decimal g.Genreid, g.Name)
+                let artists =
+                    Db.getArtists ctx
+                    |> List.map (fun g -> decimal g.Artistid, g.Name)
+                html (View.editAlbum album genres artists))
+
+            POST >=> bindToForm Form.album (fun form ->
+                Db.updateAlbum 
+                    album
+                    (int form.ArtistId,
+                     int form.GenreId,
+                     form.Price,
+                     form.Title) ctx
+                Redirection.FOUND Path.Admin.manage)
+        ]
+    | None -> never
 
 let deleteAlbum id =
     let ctx = Db.getContext()
@@ -73,6 +111,7 @@ let webPart =
         pathScan Path.Store.details details
 
         path Path.Admin.manage >=> manage
+        pathScan Path.Admin.editAlbum editAlbum
         path Path.Admin.createAlbum >=> createAlbum
         pathScan Path.Admin.deleteAlbum deleteAlbum
 

@@ -53,6 +53,17 @@ let getAlbum id (ctx: DbContext): Album option =
             select album
     } |> Seq.tryHead
 
+let createAlbum (artistId, genreId, price, title) (ctx: DbContext) =
+    ctx.Public.Albums.Create(artistId, genreId, price, title) |> ignore
+    ctx.SubmitUpdates()
+
+let updateAlbum (album: Album) (artistId, genreId, price, title) (ctx: DbContext) =
+    album.Artistid <- artistId
+    album.Genreid <- genreId
+    album.Price <- price
+    album.Title <- title
+    ctx.SubmitUpdates()
+
 let deleteAlbum (album: Album) (ctx: DbContext) =
     album.Delete()
     ctx.SubmitUpdates()
