@@ -20,6 +20,7 @@ type Album = DbContext.``public.albumsEntity``
 type Genre = DbContext.``public.genresEntity``
 type AlbumsDetails = DbContext.``public.albumdetailsEntity``
 type Artist = DbContext.``public.artistsEntity``
+type User = DbContext.``public.usersEntity``
 
 let getContext() = Sql.GetDataContext()
 
@@ -70,3 +71,10 @@ let deleteAlbum (album: Album) (ctx: DbContext) =
 
 let getArtists (ctx: DbContext): Artist list =
     ctx.Public.Artists |> Seq.toList
+
+let validateUser (username, password) (ctx: DbContext): User option =
+    query {
+        for user in ctx.Public.Users do
+            where (user.Username = username && user.Password = password)
+            select user
+    } |> Seq.tryHead

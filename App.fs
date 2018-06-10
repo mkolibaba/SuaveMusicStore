@@ -1,16 +1,48 @@
 module SuaveMusicStore.App
 
+open System
+
 open Suave                 // always open suave
+open Suave.Authentication
+open Suave.Cookie
+open Suave.Form
 open Suave.Filters
+open Suave.Model.Binding
 open Suave.Operators
 open Suave.RequestErrors
+open Suave.State.CookieStateStore
 open Suave.Successful      // for OK-result
 open Suave.Web             // for config
-open Suave.Form
-open Suave.Model.Binding
+open System.Configuration
+
+type UserLoggedOnSession = {
+    Username: string
+    Role: string
+}
+
+type Session =
+    | NoSession
+    | UserLoggedOn of UserLoggedOnSession
+
+let session f = 
+    statefulForSession
+    >=> context (fun x ->
+        match x |> HttpContext.state with
+        | None -> f NoSession
+        | Some state -> 
+            match state.get "username", state.get "role" with
+            | Some username, Some role ->
+                f (UserLoggedOn { Username = username; Role = role })
+            | _ -> f NoSession)
 
 let html container =
-    OK (View.index container)
+    let result user =
+        OK (View.index (View.partUser user) container)
+        >=> Writers.setMimeType "text/html; charset=utf-8"
+
+    session (function
+    | UserLoggedOn { Username = username } -> result (Some username)
+    | _ -> result None)
 
 let browse =
     request (fun r ->
@@ -102,6 +134,69 @@ let deleteAlbum id =
         ]
     | None -> never
 
+let passHash (pass: string) =
+    use sha = Security.Cryptography.SHA256.Create()
+    Text.Encoding.UTF8.GetBytes(pass)
+    |> sha.ComputeHash
+    |> Array.map (fun b -> b.ToString("x2"))
+    |> String.concat ""
+
+let returnPathOrHome = 
+    request (fun x ->
+        let path =
+            match (x.queryParam "returnPath") with
+            | Choice1Of2 path -> path
+            | _ -> Path.home
+        Redirection.FOUND path)
+
+let sessionStore setF =
+    context (fun x ->
+        match HttpContext.state x with
+        | Some state -> setF state
+        | None -> never)
+
+let logon =
+    choose [
+        GET >=> (View.logon "" |> html)
+        POST >=> bindToForm Form.logon (fun form ->
+            let ctx = Db.getContext()
+            let (Password password) = form.Password
+            match Db.validateUser (form.Username, passHash password) ctx with
+            | Some user ->
+                authenticated Cookie.CookieLife.Session false
+                >=> session (fun _ -> succeed)
+                >=> sessionStore (fun store ->
+                    store.set "username" user.Username
+                    >=> store.set "role" user.Role)
+                >=> returnPathOrHome
+            | _ -> 
+                View.logon "Username or password is invalid." |> html)
+    ]
+
+let reset = 
+    unsetPair SessionAuthCookie
+    >=> unsetPair StateCookie
+    >=> Redirection.FOUND Path.home
+
+let redirectWithReturnPath redirection =
+    request (fun x ->
+        let path = x.url.AbsolutePath
+        Redirection.FOUND (redirection |> Path.withParam ("returnPath", path)))
+
+let loggedOn f_success =
+    authenticate
+        Cookie.CookieLife.Session
+        false
+        (fun () -> Choice2Of2(redirectWithReturnPath Path.Account.logon))
+        (fun _ -> Choice2Of2 reset)
+        f_success
+
+let admin f_success =
+    loggedOn (session (function
+        | UserLoggedOn { Role = "admin" } -> f_success
+        | UserLoggedOn _ -> FORBIDDEN "Only for admin"
+        | _ -> UNAUTHORIZED "Not logged in"
+    ))
 
 let webPart =
     choose [
@@ -110,10 +205,13 @@ let webPart =
         path Path.Store.browse >=> browse
         pathScan Path.Store.details details
 
-        path Path.Admin.manage >=> manage
-        pathScan Path.Admin.editAlbum editAlbum
-        path Path.Admin.createAlbum >=> createAlbum
-        pathScan Path.Admin.deleteAlbum deleteAlbum
+        path Path.Admin.manage >=> admin manage
+        path Path.Admin.createAlbum >=> admin createAlbum
+        pathScan Path.Admin.editAlbum (fun id -> admin (editAlbum id))
+        pathScan Path.Admin.deleteAlbum (fun id -> admin (deleteAlbum id))
+
+        path Path.Account.logon >=> logon
+        path Path.Account.logoff >=> reset
 
         pathRegex "(.*)\.(css|png|gif)" >=> Files.browseHome
         html View.notFound

@@ -7,6 +7,7 @@ let cssLink href = link ["href", href; " rel", "stylesheet"; " type", "text/css"
 let h2 s = tag "h2" [] [Text s]
 let ul nodes = tag "ul" [] nodes
 let li = tag "li" []
+let ulAttr attr nodes = tag "ul" attr nodes
 let em s = tag "em" [] [Text s]
 let table x = tag "table" [] x
 let th x = tag "th" [] x
@@ -231,7 +232,46 @@ let manage (albums: Db.AlbumsDetails list) = [
     ]
 ]
 
-let index container = 
+let logon msg = [
+    h2 "Log On"
+    p [] [
+        Text "Please enter your user name and password."
+    ]
+
+    div ["id", "logon-message"] [
+        Text msg
+    ]
+
+    renderForm
+        { Form = Form.logon
+          Fieldsets = 
+              [ { Legend = "Account Information"
+                  Fields = 
+                      [ { Label = "User Name"
+                          Html = formInput (fun f -> <@ f.Username @>) [] }
+                        { Label = "Password"
+                          Html = formInput (fun f -> <@ f.Password @>) [] } ] } ]
+          SubmitText = "Log On" }
+]
+
+let partNav =
+    ulAttr ["id", "navlist"] [
+        li [a Path.home [] [Text "Home"]]
+        li [a Path.Store.overview [] [Text "Store"]]
+        li [a Path.Admin.manage [] [Text "Admin"]]
+    ]
+
+let partUser (user: string option) =
+    div ["id", "part-user"] [
+        match user with
+        | Some user ->
+            yield Text (sprintf "Logged on as %s, " user)
+            yield a Path.Account.logoff [] [Text "Log off"]
+        | None ->
+            yield a Path.Account.logon [] [Text "Log on"]
+    ]
+
+let index partUser container = 
     html [] [
         head [] [
             title [] "Suave Music Store"
@@ -243,6 +283,8 @@ let index container =
                 tag "h1" [] [
                     a Path.home [] [Text "F# Suave Music Store"]
                 ]
+                partNav
+                partUser
             ]
 
             div ["id", "main"] container
