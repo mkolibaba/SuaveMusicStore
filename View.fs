@@ -240,6 +240,8 @@ let logon msg = [
     h2 "Log On"
     p [] [
         Text "Please enter your user name and password."
+        a Path.Account.register [] [Text " Register"]
+        Text " if you don't have an account yet."
     ]
 
     div ["id", "logon-message"] [
@@ -265,8 +267,11 @@ let emptyCart = [
     Text "!"
 ]
 
-let nonEmptyCart (carts : Db.CartDetails list) = [
+let nonEmptyCart (carts: Db.CartDetails list) = [
     h2 "Review your cart:"
+    p ["class", "button"] [
+        a Path.Cart.checkout [] [Text "Checkout >>"]
+    ]
     div ["id", "update-message"] [Text " "]
     table [
         yield tr [
@@ -326,6 +331,67 @@ let partUser (user: string option) =
 let cart = function
     | [] -> emptyCart
     | list -> nonEmptyCart list
+
+let register msg = [
+    h2 "Create a New Account"
+    p [] [
+        Text "Use the form below to create a new account."
+    ]
+
+    div ["id", "register-message"] [
+        Text msg
+    ]
+
+    renderForm
+        { Form = Form.register
+          Fieldsets = 
+              [ { Legend = "Create a New Account"
+                  Fields = 
+                      [ { Label = "User name (max 30 characters)"
+                          Html = formInput (fun f -> <@ f.Username @>) [] }
+                        { Label = "Email address"
+                          Html = formInput (fun f -> <@ f.Email @>) [] }
+                        { Label = "Password (between 6 and 20 characters)"
+                          Html = formInput (fun f -> <@ f.Password @>) [] }
+                        { Label = "Confirm password"
+                          Html = formInput (fun f -> <@ f.ConfirmPassword @>) [] }
+                        ] } ]
+          SubmitText = "Register" }
+]
+
+let checkout = [
+    h2 "Address And Payment"
+    renderForm
+        { Form = Form.checkout 
+          Fieldsets = 
+              [ { Legend = "Shipping Information"
+                  Fields = 
+                      [ { Label = "First Name"
+                          Html = formInput (fun f -> <@ f.FirstName @>) [] }
+                        { Label = "Last Name"
+                          Html = formInput (fun f -> <@ f.LastName @>) [] }
+                        { Label = "Address"
+                          Html = formInput (fun f -> <@ f.Address @>) [] } ] }
+
+                { Legend = "Payment"
+                  Fields = 
+                      [ { Label = "Promo Code"
+                          Html = formInput (fun f -> <@ f.PromoCode @>) [] } ] } ]
+          SubmitText = "Submit Order"
+        }
+]
+
+let checkoutComplete = [
+    h2 "Checkout Complete"
+    p [] [
+        Text "Thanks for your order!"
+    ]
+    p [] [
+        Text "How about shopping for some more music in our "
+        a Path.home [] [Text "store"]
+        Text "?"
+    ]
+]
 
 let index partNav partUser container = 
     html [] [

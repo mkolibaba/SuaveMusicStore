@@ -180,6 +180,19 @@ let addToCart albumId =
                 succeed)
         >=> Redirection.FOUND Path.Cart.overview
 
+let authenticateUser (user : Db.User) =
+    authenticated Cookie.CookieLife.Session false 
+    >=> session (function
+        | CartIdOnly cartId ->
+            let ctx = Db.getContext()
+            Db.upgradeCarts (cartId, user.Username) ctx
+            sessionStore (fun store -> store.set "cartid" "")
+        | _ -> succeed)
+    >=> sessionStore (fun store ->
+        store.set "username" user.Username
+        >=> store.set "role" user.Role)
+    >=> returnPathOrHome
+
 let logon =
     choose [
         GET >=> (View.logon "" |> html)
@@ -187,21 +200,43 @@ let logon =
             let ctx = Db.getContext()
             let (Password password) = form.Password
             match Db.validateUser (form.Username, passHash password) ctx with
-            |  Some user ->
-                    authenticated Cookie.CookieLife.Session false 
-                    >=> session (function
-                        | CartIdOnly cartId ->
-                            let ctx = Db.getContext()
-                            Db.upgradeCarts (cartId, user.Username) ctx
-                            sessionStore (fun store -> store.set "cartid" "")
-                        | _ -> succeed)
-                    >=> sessionStore (fun store ->
-                        store.set "username" user.Username
-                        >=> store.set "role" user.Role)
-                    >=> returnPathOrHome
+            | Some user ->
+                    authenticateUser user
             | _ ->
                 View.logon "Username or password is invalid." |> html)
     ]
+
+let register = 
+    choose [
+        GET >=> (View.register "" |> html)
+        POST >=> bindToForm Form.register (fun form ->
+            let ctx = Db.getContext()
+            match Db.getUser form.Username ctx with
+            | Some _ ->
+                "Sorry this username is already taken. Try another one."
+                |> View.register
+                |> html
+            | None ->
+                let (Password password) = form.Password
+                let email = form.Email
+                let user = Db.newUser (form.Username, passHash password, email) ctx
+                authenticateUser user
+        )
+    ]
+
+let checkout =
+    session (function
+    | NoSession 
+    | CartIdOnly _ -> never
+
+    | UserLoggedOn { Username = username } ->
+        choose [
+            GET >=> (View.checkout |> html)
+            POST >=> warbler (fun _ ->
+                let ctx = Db.getContext()
+                Db.placeOrder username ctx
+                View.checkoutComplete |> html)
+        ])
 
 let reset = 
     unsetPair SessionAuthCookie
@@ -264,15 +299,17 @@ let webPart =
 
         path Path.Admin.manage >=> admin manage
         path Path.Admin.createAlbum >=> admin createAlbum
-        pathScan Path.Admin.editAlbum (fun id -> admin (editAlbum id))
-        pathScan Path.Admin.deleteAlbum (fun id -> admin (deleteAlbum id))
+        pathScan Path.Admin.editAlbum (editAlbum >> admin)
+        pathScan Path.Admin.deleteAlbum (deleteAlbum >> admin)
 
         path Path.Account.logon >=> logon
         path Path.Account.logoff >=> reset
+        path Path.Account.register >=> register
 
         path Path.Cart.overview >=> cart
         pathScan Path.Cart.addAlbum addToCart
         pathScan Path.Cart.removeAlbum removeFromCart
+        path Path.Cart.checkout >=> loggedOn checkout
 
         pathRegex "(.*)\.(css|png|gif|js)" >=> Files.browseHome
         html View.notFound

@@ -1,6 +1,7 @@
 module SuaveMusicStore.Db
 
 open FSharp.Data.Sql
+open System.Runtime.InteropServices
 
 [<Literal>]
 let ConnectionString =
@@ -123,4 +124,33 @@ let upgradeCarts (cartId: string, username: string) (ctx: DbContext) =
             cart.Delete()
         | None ->
             cart.Cartid <- username
+    ctx.SubmitUpdates()
+
+let getUser username (ctx: DbContext): User option = 
+    query {
+        for user in ctx.Public.Users do
+        where (user.Username = username)
+        select user
+    } |> Seq.tryHead
+
+let newUser (username, password, email) (ctx: DbContext) =
+    let role = "user"
+    let user = ctx.Public.Users.Create(email, password, role, username)
+    ctx.SubmitUpdates()
+    user
+
+let placeOrder (username: string) (ctx: DbContext) =
+    let carts = (username, ctx) ||> getCartsDetails 
+    let total = carts |> List.sumBy (fun c -> (decimal) c.Count * c.Price)
+    let order = ctx.Public.Orders.Create(System.DateTime.UtcNow, total)
+    order.Username <- username
+    ctx.SubmitUpdates()
+    for cart in carts do
+        ctx.Public.Orderdetails.Create(
+                cart.Albumid, 
+                order.Orderid, 
+                cart.Count, 
+                cart.Price) |> ignore
+        (cart.Cartid, cart.Albumid, ctx) |||> getCart
+        |> Option.iter (fun cart -> cart.Delete())
     ctx.SubmitUpdates()
